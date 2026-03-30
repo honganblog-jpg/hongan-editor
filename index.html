@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ứng dụng Ghép Ảnh AI</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phophorus Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+
+<body>
+    <div class="app-wrapper">
+        <div class="glass-container">
+            <header class="app-header">
+                <div class="logo-icon"
+                    style="background: transparent; box-shadow: none; width: 100%; height: auto; margin-bottom: 0.5rem;">
+                    <img src="logo.png"
+                        style="height: 55px; width: auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));"
+                        alt="Free Fire Logo">
+                </div>
+                <h1>Ứng dụng Ghép Ảnh AI</h1>
+                <p class="subtitle">Tạo ra những bức tranh tuyệt đẹp từ nhiều ảnh gốc bằng sức mạnh của AI</p>
+            </header>
+
+            <main>
+                <section class="config-section" style="margin-bottom: 2rem;">
+                    <div class="section-title">
+                        <i class="ph ph-key"></i>
+                        <h2>0. Cấu hình hệ thống (Bắt buộc)</h2>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <div class="textarea-wrapper" style="flex: 1;">
+                            <input type="password" id="api-key-input"
+                                placeholder="Dán Gemini API Key của bạn vào đây..."
+                                style="width: 100%; height: 100%; background: transparent; border: none; padding: 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: all 0.3s;">
+                        </div>
+                        <button id="save-key-btn" class="secondary-btn"
+                            style="white-space: nowrap; align-self: stretch;"><i class="ph ph-floppy-disk"></i> Lưu
+                            Mã</button>
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); padding: 0.5rem 1rem;">Mã Key sẽ được lưu
+                        vào thiết bị để không phải nhập lại lần sau. Tuyệt đối an toàn.</p>
+                </section>
+
+                <section class="upload-section">
+                    <div class="section-title">
+                        <i class="ph ph-images"></i>
+                        <h2>1. Tải ảnh lên (Chỉ cần 3 tấm)</h2>
+                    </div>
+                    <div class="upload-grid">
+                        <!-- Slot 1 -->
+                        <div class="upload-slot" id="slot-1">
+                            <input type="file" accept="image/*" hidden>
+                            <div class="placeholder">
+                                <i class="ph ph-plus-circle"></i>
+                                <span>Thêm ảnh</span>
+                            </div>
+                            <img class="preview hidden" src="" alt="Preview 1">
+                            <button class="remove-btn hidden"><i class="ph ph-x"></i></button>
+                        </div>
+                        <!-- Slot 2 -->
+                        <div class="upload-slot" id="slot-2">
+                            <input type="file" accept="image/*" hidden>
+                            <div class="placeholder">
+                                <i class="ph ph-plus-circle"></i>
+                                <span>Thêm ảnh</span>
+                            </div>
+                            <img class="preview hidden" src="" alt="Preview 2">
+                            <button class="remove-btn hidden"><i class="ph ph-x"></i></button>
+                        </div>
+                        <!-- Slot 3 -->
+                        <div class="upload-slot" id="slot-3">
+                            <input type="file" accept="image/*" hidden>
+                            <div class="placeholder">
+                                <i class="ph ph-plus-circle"></i>
+                                <span>Thêm ảnh</span>
+                            </div>
+                            <img class="preview hidden" src="" alt="Preview 3">
+                            <button class="remove-btn hidden"><i class="ph ph-x"></i></button>
+                        </div>
+                        <!-- Slot 4 -->
+                        <div class="upload-slot" id="slot-4">
+                            <input type="file" accept="image/*" hidden>
+                            <div class="placeholder">
+                                <i class="ph ph-plus-circle"></i>
+                                <span>Thêm ảnh</span>
+                            </div>
+                            <img class="preview hidden" src="" alt="Preview 4">
+                            <button class="remove-btn hidden"><i class="ph ph-x"></i></button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="prompt-section">
+                    <div class="section-title">
+                        <i class="ph ph-text-t"></i>
+                        <h2>2. Nhập câu lệnh AI (Không bắt buộc)</h2>
+                    </div>
+                    <div class="textarea-wrapper">
+                        <textarea id="ai-prompt"
+                            placeholder="Ví dụ: Hãy ghép cảnh bầu trời của ảnh 1, người của ảnh 2 và tạo phong cách cyberpunk..."
+                            rows="4"></textarea>
+                    </div>
+                </section>
+
+                <div class="action-section">
+                    <button id="generate-btn" class="primary-btn">
+                        <i class="ph-fill ph-check-circle"></i>
+                        GHÉP ẢNH NGAY
+                    </button>
+                </div>
+
+                <section id="result-section" class="result-section hidden">
+                    <div class="section-title">
+                        <i class="ph ph-sparkle"></i>
+                        <h2>3. Kết quả</h2>
+                    </div>
+
+                    <div class="result-container">
+                        <div id="loading-state" class="loading-state hidden">
+                            <div class="spinner"></div>
+                            <p>AI đang xử lý và tạo ảnh...</p>
+                            <div class="progress-bar">
+                                <div class="progress-fill"></div>
+                            </div>
+                        </div>
+                        <img id="result-image" class="result-image hidden" src="" alt="Kết quả AI">
+
+                        <div id="result-actions" class="result-actions hidden">
+                           <button onclick="downloadImg()" class="download-btn">
+    <i class="ph ph-download-simple"></i> TẢI ẢNH VỀ MÁY
+</button>
+                            <button class="secondary-btn" onclick="location.reload()"><i
+                                    class="ph ph-arrows-clockwise"></i>Thử lại</button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <div class="background-elements">
+            <div class="blob blob-1"></div>
+            <div class="blob blob-2"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
