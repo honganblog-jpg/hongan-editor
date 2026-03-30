@@ -183,10 +183,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const base64Img2 = await fileToBase64(validFiles[1]);
 
                 const parts = [
-                    { text: "Nhiệm vụ: 1. Đọc số 'Level' (Avatar ở góc trái trên cùng ảnh 1). 2. Ở ảnh 2, BỎ QUA CHỮ PRIME TO. Hãy tìm dòng chữ nhỏ 'để về Prime [Số]' (nằm trong thanh màu vàng) và LẤY CÁI [Số] ĐÓ. 3. Trả về đúng 1 dòng: 'LEVEL [Level] - VIP [Số]'. TUYỆT ĐỐI KHÔNG DÙNG CHỮ PRIME. Ví dụ: 'LEVEL 60 - VIP 3'. Không giải thích gì thêm." },
-                    { inlineData: { mimeType: 'image/jpeg', data: base64Img1.data } },
-                    { inlineData: { mimeType: 'image/jpeg', data: base64Img2.data } }
-                ];
+        { text: "Nhiệm vụ: 1. Soi số 'Level' ở góc trái trên cùng ảnh 1. 2. Ở ảnh 2, BỎ QUA SỐ PRIME LỚN. Hãy tìm con số nhỏ nằm trong biểu tượng vương miện/huy hiệu VIP (con số nhỏ nhất, ví dụ VIP 3). Trả về kết quả duy nhất theo định dạng: LEVEL [Số] - VIP [Số]. Ví dụ: LEVEL 53 - VIP 3" },
+          { inlineData: { mimeType: 'image/jpeg', data: base64Img1.data } },
+          { inlineData: { mimeType: 'image/jpeg', data: base64Img2.data } }
+        ];
 
                 const payload = {
                     contents: [{ parts: parts }],
