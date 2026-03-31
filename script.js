@@ -96,4 +96,37 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // --- VẼ CANVAS ---
-            const imgs = await Promise.all(validFiles.map(f => new Promise(
+            const imgs = await Promise.all(validFiles.map(f => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = URL.createObjectURL(f); })));
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = imgs[0].width; canvas.height = imgs[0].height;
+            ctx.drawImage(imgs[0], 0, 0);
+
+            const drawCard = (img, dy) => {
+                const dw = canvas.width * 0.45; const dh = (img.height / img.width) * dw;
+                const dx = canvas.width - dw - (canvas.width * 0.03);
+                ctx.save(); ctx.beginPath(); ctx.roundRect(dx, dy, dw, dh, 25); ctx.clip();
+                ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
+                ctx.restore();
+                ctx.strokeStyle = '#f9d423'; ctx.lineWidth = 8; ctx.stroke();
+            };
+
+            drawCard(imgs[1], canvas.height * 0.05);
+            drawCard(imgs[2], canvas.height * 0.52);
+
+            ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, canvas.height * 0.85, canvas.width * 0.45, canvas.height * 0.12);
+            ctx.font = `italic bold ${canvas.height * 0.08}px Arial`; ctx.fillStyle = '#f9d423';
+            ctx.fillText(vipSlogan, canvas.width * 0.05, canvas.height * 0.94);
+
+            resultImage.src = canvas.toDataURL('image/jpeg', 0.95);
+            resultImage.classList.remove('hidden');
+            document.getElementById('result-actions').classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            generateBtn.disabled = false;
+
+        } catch (err) {
+            alert("Lỗi: " + err.message);
+            loadingState.classList.add('hidden'); generateBtn.disabled = false;
+        }
+    };
+});
