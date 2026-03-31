@@ -1,19 +1,13 @@
-// --- 1. HÀM TẢI ẢNH (ĐỂ NGOÀI CÙNG ĐỂ NÚT HTML GỌI ĐƯỢC) ---
+// --- BẢN FIX CHỐT HẠ: PHIÊN BẢN 2.0 (ỔN ĐỊNH 2026) ---
+
 function downloadImg() {
     const img = document.getElementById('result-image');
-    if (!img || !img.src || img.classList.contains('hidden')) {
-        alert("Chưa có ảnh kết quả để tải sếp ơi!");
-        return;
-    }
+    if (!img || !img.src || img.classList.contains('hidden')) return alert("Chưa có ảnh sếp ơi!");
     const link = document.createElement('a');
-    link.href = img.src;
-    link.download = 'Sieu-Pham-FF-Cua-An.jpg';
-    document.body.appendChild(link);
+    link.href = img.src; link.download = 'Sieu-Pham-An.jpg';
     link.click();
-    document.body.removeChild(link);
 }
 
-// --- 2. TOÀN BỘ LOGIC XỬ LÝ ---
 document.addEventListener('DOMContentLoaded', () => {
     const uploadSlots = document.querySelectorAll('.upload-slot');
     const generateBtn = document.getElementById('generate-btn');
@@ -22,38 +16,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiKeyInput = document.getElementById('api-key-input');
     const saveKeyBtn = document.getElementById('save-key-btn');
 
-    // Móc API Key từ bộ nhớ
     if (localStorage.getItem('gemini_api_key')) {
         apiKeyInput.value = localStorage.getItem('gemini_api_key');
         saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu';
     }
 
     saveKeyBtn.addEventListener('click', () => {
-        const key = apiKeyInput.value.trim();
-        if (key) {
-            localStorage.setItem('gemini_api_key', key);
-            saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu';
-            alert("Đã lưu mã API thành công!");
-        } else {
-            alert("Vui lòng nhập mã trước khi lưu!");
-        }
+        localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
+        saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu';
     });
 
     const selectedFiles = [null, null, null, null];
-
     uploadSlots.forEach((slot, index) => {
         const input = slot.querySelector('input[type="file"]');
         input.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 selectedFiles[index] = file;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
+                const r = new FileReader();
+                r.onload = (ev) => {
                     slot.querySelector('.preview').src = ev.target.result;
                     slot.querySelector('.preview').classList.remove('hidden');
                     slot.querySelector('.placeholder').classList.add('hidden');
                 };
-                reader.readAsDataURL(file);
+                r.readAsDataURL(file);
             }
         });
         slot.addEventListener('click', () => input.click());
@@ -79,22 +65,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     generateBtn.addEventListener('click', async () => {
         const API_KEY = apiKeyInput.value.trim();
-        if (!API_KEY) return alert("Sếp chưa nhập Key ở mục 0!");
-
+        if (!API_KEY) return alert("Sếp nhập Key đi!");
         const validFiles = selectedFiles.filter(f => f !== null);
-        if (validFiles.length < 3) return alert("Cần đủ 3 ảnh (Nền, Prime, Súng)!");
+        if (validFiles.length < 3) return alert("Úp đủ 3 ảnh sếp ơi!");
 
         generateBtn.disabled = true;
         loadingState.classList.remove('hidden');
-        document.getElementById('result-section').classList.remove('hidden');
         let vipSlogan = "LEVEL ? - VIP ?";
 
         try {
             const [b1, b2] = await Promise.all([fileToAI(validFiles[0]), fileToAI(validFiles[1])]);
-            const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện (BỎ QUA PRIME TO). Trả về mẫu: LEVEL [Số] - VIP [Số].";
+            const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện. Trả về: LEVEL [Số] - VIP [Số].";
 
-            // LINK VÀNG: Dùng v1beta và tên mô hình chuẩn (KHÔNG CÓ CHỮ LATEST) 
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+            // DÙNG BẢN V1 CHO CHẮC CHẮN 
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: b1 }, { inlineData: b2 }] }] })
@@ -102,10 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await res.json();
             
-            if (res.ok && data.candidates) {
+            if (!res.ok) {
+                // THÔNG BÁO CÓ SỐ PHIÊN BẢN ĐỂ SẾP BIẾT CODE ĐÃ CẬP NHẬT CHƯA
+                alert("Bản fix 404 - v1 báo lỗi (" + res.status + "): " + (data.error ? data.error.message : "Google chặn rồi"));
+            } else if (data.candidates) {
                 vipSlogan = data.candidates[0].content.parts[0].text.trim().toUpperCase().replace(/[*_#`\n\r]/g, '');
-            } else {
-                alert("Lỗi AI (" + res.status + "): " + (data.error ? data.error.message : "Google chặn rồi!"));
             }
 
             const imgs = await Promise.all(validFiles.map(f => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = URL.createObjectURL(f); })));
