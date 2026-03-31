@@ -1,13 +1,13 @@
-// --- 1. HÀM TẢI ẢNH (PHẢI ĐỂ NGOÀI CÙNG) ---
+// --- 1. HÀM TẢI ẢNH (PHẢI ĐỂ NGOÀI CÙNG ĐỂ NÚT HTML GỌI ĐƯỢC) ---
 function downloadImg() {
     const img = document.getElementById('result-image');
     if (!img || !img.src || img.classList.contains('hidden')) {
-        alert("Chưa có ảnh để tải sếp ơi! Sếp nhớ bấm 'Ghép ảnh' trước nhé.");
+        alert("Chưa có ảnh kết quả để tải sếp ơi!");
         return;
     }
     const link = document.createElement('a');
     link.href = img.src;
-    link.download = 'Sieu-Pham-FF-By-An.jpg';
+    link.download = 'Sieu-Pham-FF-Cua-An.jpg';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -29,9 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     saveKeyBtn.addEventListener('click', () => {
-        localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
-        saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu';
-        alert("Đã lưu mã API thành công!");
+        const key = apiKeyInput.value.trim();
+        if (key) {
+            localStorage.setItem('gemini_api_key', key);
+            saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu';
+            alert("Đã lưu mã API thành công!");
+        } else {
+            alert("Vui lòng nhập mã trước khi lưu!");
+        }
     });
 
     const selectedFiles = [null, null, null, null];
@@ -54,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         slot.addEventListener('click', () => input.click());
     });
 
+    // Nén ảnh chất lượng cao 1600px để AI soi VIP chuẩn
     const fileToAI = (file) => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -63,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 img.src = e.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    canvas.width = 1600; 
+                    canvas.width = 1600;
                     canvas.height = (img.height / img.width) * 1600;
                     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
                     resolve({ mimeType: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.9).split(',')[1] });
@@ -74,10 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     generateBtn.addEventListener('click', async () => {
         const API_KEY = apiKeyInput.value.trim();
-        if (!API_KEY) return alert("Sếp chưa dán Key ở mục 0!");
+        if (!API_KEY) return alert("Sếp chưa nhập Key ở mục 0!");
 
         const validFiles = selectedFiles.filter(f => f !== null);
-        if (validFiles.length < 3) return alert("Cần đủ 3 ảnh (Nền, Prime, Súng) để không bị lỗi ô đen sếp ơi!");
+        if (validFiles.length < 3) return alert("Cần đủ 3 ảnh (Nền, Prime, Súng)!");
 
         generateBtn.disabled = true;
         loadingState.classList.remove('hidden');
@@ -85,12 +91,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let vipSlogan = "LEVEL ? - VIP ?";
 
         try {
-            // --- BƯỚC 1: AI SOI SỐ (FIX LỖI 404 BẰNG MÔ HÌNH LATEST) ---
+            // Bước 1: AI soi Level và VIP (Dùng link v1 để tránh lỗi 404)
             const [b1, b2] = await Promise.all([fileToAI(validFiles[0]), fileToAI(validFiles[1])]);
-            const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện (BỎ QUA PRIME TO). Trả về mẫu: LEVEL [Số] - VIP [Số]. Ví dụ: LEVEL 60 - VIP 3.";
+            const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện (BỎ QUA PRIME TO). Trả về mẫu: LEVEL [Số] - VIP [Số].";
 
-            // Dùng v1beta và thêm chữ -latest để đảm bảo không bị 404
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`, {
+            // Sửa link API thành v1 để hết lỗi 404
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: b1 }, { inlineData: b2 }] }] })
@@ -101,10 +107,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.ok && data.candidates) {
                 vipSlogan = data.candidates[0].content.parts[0].text.trim().toUpperCase().replace(/[*_#`\n\r]/g, '');
             } else {
-                alert("Lỗi AI: " + (data.error ? data.error.message : "Google đang bảo trì hoặc Key sai!"));
+                alert("Lỗi AI (" + res.status + "): " + (data.error ? data.error.message : "Google chặn rồi!"));
             }
 
-            // --- BƯỚC 2: VẼ CANVAS (FIX LỖI Ô ĐEN) ---
+            // Bước 2: Vẽ Canvas (Fix lỗi ô đen & tọa độ)
             const imgs = await Promise.all(validFiles.map(f => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = URL.createObjectURL(f); })));
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -126,8 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.strokeStyle = '#f9d423'; ctx.lineWidth = 8; ctx.stroke();
             };
 
-            if (imgs[1]) drawCard(imgs[1], canvas.height * 0.05);
-            if (imgs[2]) drawCard(imgs[2], canvas.height * 0.52);
+            drawCard(imgs[1], canvas.height * 0.05); // Ô Prime
+            drawCard(imgs[2], canvas.height * 0.52); // Ô Súng
 
             // Vẽ Chữ LEVEL - VIP
             ctx.fillStyle = 'rgba(0,0,0,0.8)';
@@ -143,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
             generateBtn.disabled = false;
 
         } catch (err) {
-            alert("Lỗi phần cứng: " + err.message);
+            alert("Lỗi: " + err.message);
             loadingState.classList.add('hidden');
             generateBtn.disabled = false;
         }
