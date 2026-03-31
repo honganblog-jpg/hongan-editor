@@ -1,5 +1,4 @@
-// --- BẢN FIX CHỐT HẠ: PHIÊN BẢN 2.0 (ỔN ĐỊNH 2026) ---
-
+// --- BẢN FIX 2026: DÙNG MODEL 2.5 FLASH ---
 function downloadImg() {
     const img = document.getElementById('result-image');
     if (!img || !img.src || img.classList.contains('hidden')) return alert("Chưa có ảnh sếp ơi!");
@@ -77,8 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const [b1, b2] = await Promise.all([fileToAI(validFiles[0]), fileToAI(validFiles[1])]);
             const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện. Trả về: LEVEL [Số] - VIP [Số].";
 
-            // DÙNG BẢN V1 CHO CHẮC CHẮN 
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+            // ĐỔI SANG MODEL 2.5 FLASH ĐỂ KHÔNG BỊ 404 NỮA
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: b1 }, { inlineData: b2 }] }] })
@@ -87,8 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             
             if (!res.ok) {
-                // THÔNG BÁO CÓ SỐ PHIÊN BẢN ĐỂ SẾP BIẾT CODE ĐÃ CẬP NHẬT CHƯA
-                alert("Bản fix 404 - v1 báo lỗi (" + res.status + "): " + (data.error ? data.error.message : "Google chặn rồi"));
+                alert("Lỗi AI (" + res.status + "): " + (data.error ? data.error.message : "Google chặn rồi"));
             } else if (data.candidates) {
                 vipSlogan = data.candidates[0].content.parts[0].text.trim().toUpperCase().replace(/[*_#`\n\r]/g, '');
             }
