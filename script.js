@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const API_KEY = apiKeyInput.value.trim();
         if (!API_KEY) return alert("Sếp chưa nhập mã Key!");
         const validFiles = selectedFiles.filter(f => f !== null);
-        if (validFiles.length < 3) return alert("Sếp up đủ 3 ảnh nhé!");
+        if (validFiles.length < 3) return alert("Sếp up đủ 3 ảnh (Nền, Prime, Súng) nhé!");
 
         generateBtn.disabled = true;
         document.getElementById('result-section').classList.remove('hidden');
@@ -83,7 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let vipSlogan = "LEVEL ? - VIP ?";
 
         try {
-            // AI ĐỌC SỐ
+            // ==========================================
+            // 1. AI ĐỌC SỐ
+            // ==========================================
             const [b1, b2] = await Promise.all([fileToAI(validFiles[0]), fileToAI(validFiles[1])]);
             const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện (BỎ QUA PRIME TO). Trả về đúng mẫu: LEVEL [Số] - VIP [Số].";
 
@@ -98,7 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 vipSlogan = data.candidates[0].content.parts[0].text.trim().toUpperCase().replace(/[*_#`\n\r]/g, '');
             }
 
-            // VẼ CANVAS
+            // ==========================================
+            // 2. VẼ CANVAS
+            // ==========================================
             const imageObjects = await Promise.all(validFiles.map(f => new Promise(r => { 
                 const i = new Image(); i.onload = () => r(i); i.src = URL.createObjectURL(f); 
             })));
@@ -113,10 +117,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (H > 1440) { W = (1440 / H) * W; H = 1440; }
             canvas.width = W; canvas.height = H;
 
-            // 1. Vẽ nền
+            // Dán Nền
             ctx.drawImage(imgBg, 0, 0, imgBg.width, imgBg.height, 0, 0, W, H);
 
-            // 2. Phủ sương đen làm mờ nền
+            // Phủ kính mờ tối nền
             const gradDark = ctx.createLinearGradient(W * 0.2, 0, W, 0);
             gradDark.addColorStop(0, 'rgba(0,0,0,0.1)'); 
             gradDark.addColorStop(0.5, 'rgba(0,0,0,0.6)');
@@ -124,23 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = gradDark;
             ctx.fillRect(0, 0, W, H);
 
-            // 3. Vẽ hiệu ứng tia lửa
-            ctx.save();
-            for (let i = 0; i < 30; i++) {
-                const x = Math.random() * W; const y = Math.random() * H;
-                const length = Math.random() * 25 + 10; const angle = Math.random() * Math.PI * 2;
-                ctx.beginPath();
-                ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
-                const colors = ['#ffffff', '#ffeb3b', '#ff9800'];
-                ctx.strokeStyle = colors[Math.floor(Math.random() * colors.length)];
-                ctx.lineWidth = Math.random() * 3 + 1;
-                ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 10;
-                ctx.globalAlpha = Math.random() * 0.6 + 0.2;
-                ctx.stroke();
-            }
-            ctx.restore();
-
-            // 4. Tính toán và vẽ 2 thẻ
+            // Vẽ thẻ Prime & Kho Đồ
             const cr1 = { sx: imgPrime.width * 0.175, sy: imgPrime.height * 0.05, sw: imgPrime.width * 0.825, sh: imgPrime.height * 0.90 };
             const cr2 = { sx: imgWeapons.width * 0.18, sy: imgWeapons.height * 0.175, sw: imgWeapons.width * 0.81, sh: imgWeapons.height * 0.80 };
             const availH = H * 0.90 - (H * 0.03);
@@ -178,72 +166,81 @@ document.addEventListener('DOMContentLoaded', () => {
             drawVipCard(imgPrime, cr1, dx, dy1, dw, dh1);
             drawVipCard(imgWeapons, cr2, dx, dy2, dw, dh2);
 
-            // =========================================================
-            // 5. VẼ BĂNG RÔN & CHỮ LEVEL (CHUẨN DEMO 24234.jpg)
-            // =========================================================
+            // ==========================================
+            // 3. VẼ CHỮ LEVEL - VIP SIÊU TO KHỔNG LỒ
+            // ==========================================
             ctx.save();
             
-            // Cài đặt Font chữ siêu to
-            let fontSize = Math.floor(H * 0.075);
-            ctx.font = `italic 900 ${fontSize}px "Arial Black", "Impact", sans-serif`;
-            ctx.textAlign = 'left';
+            // FONT CHỮ CỰC LỚN (Chiếm 8% chiều cao ảnh)
+            const fontSize = Math.floor(H * 0.08); 
+            ctx.font = `italic 900 ${fontSize}px "Arial Black", Impact, sans-serif`;
             ctx.textBaseline = 'middle';
-            
-            // Đo chiều rộng chữ để vẽ khung vừa vặn
-            const textWidth = ctx.measureText(vipSlogan).width;
-            
-            // Kích thước khung (Padding)
-            const paddingX = fontSize * 1.2;
-            const paddingY = fontSize * 0.8;
-            const bannerH = fontSize + paddingY * 2;
-            const bannerW = textWidth + paddingX * 2;
-            const slant = W * 0.06; // Độ chéo của cạnh phải
-            
-            // Vị trí khung (Góc dưới cùng bên trái)
-            const startX = 0; 
-            const startY = H - bannerH - (H * 0.02);
+            ctx.textAlign = 'left';
 
-            // Vẽ Đường dẫn (Path) cho hình thang nghiêng
+            // ĐO KÍCH THƯỚC KHUNG NỀN
+            const textWidth = ctx.measureText(vipSlogan).width;
+            const paddingX = fontSize * 1.5; // Lề trái phải
+            const paddingY = fontSize * 1.0; // Lề trên dưới
+            const bannerW = textWidth + (paddingX * 2);
+            const bannerH = fontSize + paddingY;
+            
+            // Đặt tọa độ ở góc dưới bên trái (Cách lề đáy 5%)
+            const startX = -20; // Lùi ra ngoài mép một chút cho đẹp
+            const startY = H - bannerH - (H * 0.05);
+
+            // VẼ HÌNH THANG NGHIÊNG (NỀN ĐEN BĂNG RÔN)
             ctx.beginPath();
-            ctx.moveTo(startX, startY); // Góc trên trái
-            ctx.lineTo(startX + bannerW + slant, startY); // Góc trên phải (nhô ra tạo độ nghiêng)
-            ctx.lineTo(startX + bannerW, startY + bannerH); // Góc dưới phải (thụt vào)
-            ctx.lineTo(startX, startY + bannerH); // Góc dưới trái
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(startX + bannerW + (bannerH * 0.4), startY); // Cạnh trên vát chéo ra ngoài
+            ctx.lineTo(startX + bannerW, startY + bannerH);         // Cạnh dưới thu lại
+            ctx.lineTo(startX, startY + bannerH);
             ctx.closePath();
 
-            // Đổ nền đen mờ cho khung
-            ctx.fillStyle = 'rgba(15, 15, 15, 0.9)';
+            // Đổ nền đen trong suốt
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.85)';
             ctx.fill();
-
-            // Bo viền Gradient Đỏ - Vàng cho khung
-            const borderGrad = ctx.createLinearGradient(startX, startY, startX + bannerW + slant, startY + bannerH);
-            borderGrad.addColorStop(0, '#f9d423'); // Vàng
-            borderGrad.addColorStop(1, '#ff4e50'); // Đỏ
-            ctx.lineWidth = Math.floor(H * 0.008);
+            
+            // Viền Gradient rực lửa cho băng rôn
+            ctx.lineWidth = 6;
+            const borderGrad = ctx.createLinearGradient(startX, startY, startX + bannerW, startY + bannerH);
+            borderGrad.addColorStop(0, '#f9d423');
+            borderGrad.addColorStop(1, '#ff4e50');
             ctx.strokeStyle = borderGrad;
             ctx.stroke();
 
-            // Đổ bóng cho chữ bên trong
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetX = 4;
-            ctx.shadowOffsetY = 4;
+            // VỊ TRÍ CHỮ
+            const textX = startX + paddingX;
+            const textY = startY + (bannerH / 2) + (fontSize * 0.05);
 
-            // Màu gradient cho chữ (Trắng ngà sang Vàng)
-            const textGrad = ctx.createLinearGradient(0, startY, 0, startY + bannerH);
-            textGrad.addColorStop(0, '#ffffff');
-            textGrad.addColorStop(0.5, '#fff176'); // Vàng nhạt
-            textGrad.addColorStop(1, '#ffb300'); // Vàng cam
-            
+            // BÓNG CHỮ SIÊU ĐẬM ĐỂ NỔI BẬT
+            ctx.shadowColor = 'rgba(0, 0, 0, 1)';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetX = 6;
+            ctx.shadowOffsetY = 6;
+
+            // VIỀN ĐEN DÀY CHO CHỮ
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = '#000000';
+            ctx.strokeText(vipSlogan, textX, textY);
+
+            // TẮT BÓNG ĐỂ TÔ MÀU BÊN TRONG KHÔNG BỊ LEM
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+
+            // MÀU GRADIENT VÀNG SÁNG CHO CHỮ
+            const textGrad = ctx.createLinearGradient(0, textY - fontSize/2, 0, textY + fontSize/2);
+            textGrad.addColorStop(0, '#ffffff'); // Trắng đỉnh chữ
+            textGrad.addColorStop(0.5, '#fff176'); // Vàng sáng
+            textGrad.addColorStop(1, '#ffb300'); // Vàng cam đáy chữ
             ctx.fillStyle = textGrad;
-            
-            // In chữ ra giữa khung
-            ctx.fillText(vipSlogan, startX + paddingX, startY + bannerH / 2 + (fontSize * 0.05));
+            ctx.fillText(vipSlogan, textX, textY);
             
             ctx.restore();
-            // =========================================================
 
-            // Xuất ảnh
+            // ==========================================
+            // XUẤT ẢNH
+            // ==========================================
             setTimeout(() => {
                 loadingState.classList.add('hidden');
                 resultImage.src = canvas.toDataURL('image/jpeg', 0.95);
