@@ -1,77 +1,48 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // === DOM Elements ===
+    // --- 1. KẾT NỐI GIAO DIỆN ---
     const uploadSlots = document.querySelectorAll('.upload-slot');
     const generateBtn = document.getElementById('generate-btn');
-    const resultSection = document.getElementById('result-section');
     const loadingState = document.getElementById('loading-state');
-    const progressFill = document.querySelector('.progress-fill');
-    const loadingText = document.querySelector('.loading-state p');
     const resultImage = document.getElementById('result-image');
-    const resultActions = document.getElementById('result-actions');
     const apiKeyInput = document.getElementById('api-key-input');
     const saveKeyBtn = document.getElementById('save-key-btn');
 
-    // Móc dữ liệu API Key đã lưu
+    // Móc API Key đã lưu từ trước
     if (localStorage.getItem('gemini_api_key')) {
         apiKeyInput.value = localStorage.getItem('gemini_api_key');
         saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu';
-        saveKeyBtn.style.color = 'var(--primary-green)';
     }
 
     saveKeyBtn.addEventListener('click', () => {
-        const key = apiKeyInput.value.trim();
-        if (key) {
-            localStorage.setItem('gemini_api_key', key);
-            saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu';
-            saveKeyBtn.style.color = 'var(--primary-green)';
-        } else {
-            alert('Vui lòng nhập Key trước khi lưu!');
-        }
+        localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
+        saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu';
+        alert("Đã lưu mã thành công!");
     });
 
     const selectedFiles = [null, null, null, null];
 
+    // --- 2. XỬ LÝ UP ẢNH ---
     uploadSlots.forEach((slot, index) => {
         const input = slot.querySelector('input[type="file"]');
-        const preview = slot.querySelector('.preview');
-        const placeholder = slot.querySelector('.placeholder');
-        const removeBtn = slot.querySelector('.remove-btn');
-
-        slot.addEventListener('click', (e) => {
-            if (e.target !== removeBtn && !removeBtn.contains(e.target)) input.click();
-        });
-
         input.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if (file && file.type.startsWith('image/')) {
+            if (file) {
                 selectedFiles[index] = file;
                 const reader = new FileReader();
                 reader.onload = (ev) => {
-                    preview.src = ev.target.result;
-                    preview.classList.remove('hidden');
-                    placeholder.classList.add('hidden');
-                    removeBtn.classList.remove('hidden');
-                    slot.classList.add('has-image');
+                    slot.querySelector('.preview').src = ev.target.result;
+                    slot.querySelector('.preview').classList.remove('hidden');
+                    slot.querySelector('.placeholder').classList.add('hidden');
                 };
                 reader.readAsDataURL(file);
             }
         });
-
-        removeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            input.value = '';
-            selectedFiles[index] = null;
-            preview.src = '';
-            preview.classList.add('hidden');
-            placeholder.classList.remove('hidden');
-            removeBtn.classList.add('hidden');
-            slot.classList.remove('has-image');
-        });
+        slot.addEventListener('click', () => input.click());
     });
 
-    // Hàm nén ảnh riêng cho AI (Giữ chất lượng cao hơn để soi chữ)
-    const fileForAI = (file) => {
-        return new Promise((resolve, reject) => {
+    // Hàm nén ảnh riêng để AI nhìn cho rõ số VIP
+    const fileToAI = (file) => {
+        return new Promise((resolve) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = (e) => {
@@ -79,172 +50,89 @@ document.addEventListener('DOMContentLoaded', () => {
                 img.src = e.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    // Giữ ảnh to (1600px) để AI soi rõ số VIP nhỏ
-                    const scale = 1600 / img.width;
-                    canvas.width = 1600;
-                    canvas.height = img.height * scale;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    resolve({
-                        mimeType: 'image/jpeg',
-                        data: canvas.toDataURL('image/jpeg', 0.9).split(',')[1]
-                    });
+                    canvas.width = 1200; 
+                    canvas.height = (img.height / img.width) * 1200;
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve({ mimeType: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.8).split(',')[1] });
                 };
             };
         });
     };
 
+    // --- 3. NÚT GHÉP ẢNH CHÍNH ---
     generateBtn.addEventListener('click', async () => {
         const API_KEY = apiKeyInput.value.trim();
-        if (!API_KEY) {
-            alert("LỖI: Vui lòng dán Gemini API Key!");
-            return;
-        }
+        if (!API_KEY) return alert("Sếp chưa nhập API Key ở mục 0 kìa!");
 
         const validFiles = selectedFiles.filter(f => f !== null);
-        if (validFiles.length < 3) {
-            alert("Sếp ơi, cần đủ 3 ảnh mới đẹp (Nền, Prime, Súng)!");
-            return;
-        }
+        if (validFiles.length < 3) return alert("Phải đủ 3 ảnh (Nền, Prime, Súng) mới không bị lỗi ô đen sếp ơi!");
 
         generateBtn.disabled = true;
-        generateBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> ĐANG SOI ẢNH...';
-        resultSection.classList.remove('hidden');
         loadingState.classList.remove('hidden');
-        resultImage.classList.add('hidden');
-        resultActions.classList.add('hidden');
+        document.getElementById('result-section').classList.remove('hidden');
 
         let vipSlogan = "LEVEL ? - VIP ?";
 
         try {
-            // Bước 1: AI soi số (Dùng model 1.5 Flash cho chuẩn)
-            progressFill.style.width = '20%';
-            loadingText.textContent = "AI đang soi 'mắt' vào Level và VIP của sếp...";
+            // SOI LEVEL VÀ VIP (Dùng 1.5 Flash cho ổn định)
+            const [aiImg1, aiImg2] = await Promise.all([fileToAI(validFiles[0]), fileToAI(validFiles[1])]);
+            const prompt = "Soi số Level ở góc trái trên ảnh 1. Soi số nhỏ trong icon vương miện ở ảnh 2 (BỎ QUA PRIME TO). Trả về đúng mẫu: LEVEL [Số] - VIP [Số]. Ví dụ: LEVEL 55 - VIP 6.";
 
-            const [aiImg1, aiImg2] = await Promise.all([
-                fileForAI(validFiles[0]),
-                fileForAI(validFiles[1])
-            ]);
-
-            const prompt = "Task: 1. Soi số Level ở góc trái trên ảnh 1. 2. Ở ảnh 2, BỎ QUA chữ PRIME TO. Hãy tìm số nhỏ nằm trong icon vương miện (thường là số 1, 2, 3...). Trả về định dạng duy nhất: LEVEL [Số] - VIP [Số]. Ví dụ: LEVEL 60 - VIP 3. Không viết gì thêm.";
-
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [
-                        { text: prompt },
-                        { inlineData: aiImg1 },
-                        { inlineData: aiImg2 }
-                    ]}]
-                })
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: aiImg1 }, { inlineData: aiImg2 }] }] })
             });
 
-            const data = await response.json();
-            if (data.candidates && data.candidates[0].content) {
-                // Làm sạch chữ từ AI
+            const data = await res.json();
+            
+            if (res.ok && data.candidates) {
                 vipSlogan = data.candidates[0].content.parts[0].text.trim().toUpperCase().replace(/[*_#`\n\r]/g, '');
+            } else if (res.status === 429) {
+                alert("Sếp bấm nhanh quá Google nó chặn (Lỗi 429) rồi! Đợi 1 phút hãy bấm lại.");
             }
 
-            // Bước 2: Vẽ Canvas (Phần này giữ logic dán đè của sếp nhưng tối ưu tọa độ)
-            progressFill.style.width = '50%';
-            loadingText.textContent = "Đang dập nổi khung vàng 24K...";
-
-            const imgs = await Promise.all(validFiles.map(file => {
-                return new Promise(res => {
-                    const i = new Image();
-                    i.onload = () => res(i);
-                    i.src = URL.createObjectURL(file);
-                });
-            }));
-
+            // --- 4. VẼ CANVAS (FIX LỖI Ô ĐEN) ---
+            const imgs = await Promise.all(validFiles.map(f => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = URL.createObjectURL(f); })));
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const bg = imgs[0];
-            const W = (bg.height > 1440) ? (1440 / bg.height) * bg.width : bg.width;
-            const H = (bg.height > 1440) ? 1440 : bg.height;
-            canvas.width = W;
-            canvas.height = H;
+            canvas.width = bg.width; 
+            canvas.height = bg.height;
 
-            // Vẽ nền
-            ctx.drawImage(bg, 0, 0, bg.width, bg.height, 0, 0, W, H);
-            
-            // Lớp phủ tối bên phải
-            const grad = ctx.createLinearGradient(W*0.4, 0, W, 0);
-            grad.addColorStop(0, 'transparent');
-            grad.addColorStop(1, 'rgba(0,0,0,0.8)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(W*0.4, 0, W*0.6, H);
+            // Vẽ ảnh nền
+            ctx.drawImage(bg, 0, 0);
 
-            // Vẽ 2 khung (Prime và Súng) - Tọa độ sếp đã tính rất chuẩn
-            const drawCard = (img, sy, dy) => {
-                const dw = W * 0.45;
-                const dh = (img.height * 0.8 / (img.width * 0.8)) * dw;
-                const dx = W - dw - (W * 0.03);
+            // Hàm vẽ khung Prime và Súng (Tự tính tọa độ chuẩn)
+            const drawCard = (img, dy) => {
+                const dw = canvas.width * 0.45; // Chiều rộng 45% ảnh nền
+                const dh = (img.height / img.width) * dw; // Tỉ lệ chiều cao chuẩn
+                const dx = canvas.width - dw - (canvas.width * 0.03); // Cách lề phải 3%
                 
                 ctx.save();
-                ctx.shadowBlur = 30; ctx.shadowColor = 'black';
-                ctx.fillStyle = 'black';
-                ctx.roundRect(dx, dy, dw, dh, 20); ctx.fill();
+                ctx.beginPath();
+                ctx.roundRect(dx, dy, dw, dh, 20); // Bo góc 20px
                 ctx.clip();
-                ctx.drawImage(img, img.width*0.18, img.height*sy, img.width*0.8, img.height*0.8, dx, dy, dw, dh);
+                ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
                 ctx.restore();
                 
-                // Viền vàng
-                ctx.strokeStyle = '#f9d423'; ctx.lineWidth = 6;
+                // Viền vàng sang chảnh
+                ctx.strokeStyle = '#f9d423'; 
+                ctx.lineWidth = 6; 
                 ctx.stroke();
             };
 
-            drawCard(imgs[1], 0.05, H * 0.05); // Khung Prime
-            drawCard(imgs[2], 0.17, H * 0.52); // Khung Súng
+            // Vẽ 2 ô bên phải (Fix tọa độ dy để không bị chồng hoặc mất ảnh)
+            drawCard(imgs[1], canvas.height * 0.05); // Ô trên
+            drawCard(imgs[2], canvas.height * 0.52); // Ô dưới
 
-            // Vẽ Băng Rôn & Chữ LEVEL - VIP
-            ctx.save();
-            const fontSize = H * 0.07;
-            ctx.font = `italic 900 ${fontSize}px Arial`;
-            const tw = ctx.measureText(vipSlogan).width;
+            // --- 5. VẼ CHỮ LEVEL - VIP ---
+            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+            ctx.fillRect(0, canvas.height * 0.85, canvas.width * 0.4, canvas.height * 0.1);
             
-            // Vẽ nền đen nghiêng cho chữ
-            ctx.fillStyle = 'rgba(0,0,0,0.85)';
-            ctx.beginPath();
-            ctx.moveTo(W*0.03, H*0.85);
-            ctx.lineTo(W*0.03 + tw + 100, H*0.85);
-            ctx.lineTo(W*0.03 + tw + 60, H*0.95);
-            ctx.lineTo(W*0.03, H*0.95);
-            ctx.fill();
-            ctx.strokeStyle = '#f9d423'; ctx.lineWidth = 4; ctx.stroke();
+            ctx.font = `italic bold ${canvas.height * 0.07}px Arial`;
+            ctx.fillStyle = '#f9d423';
+            ctx.fillText(vipSlogan, canvas.width * 0.05, canvas.height * 0.92);
 
-            // Vẽ chữ vàng trắng
-            const tGrad = ctx.createLinearGradient(0, H*0.85, 0, H*0.95);
-            tGrad.addColorStop(0, '#f9d423'); tGrad.addColorStop(0.5, '#fff'); tGrad.addColorStop(1, '#ff4e50');
-            ctx.fillStyle = tGrad;
-            ctx.fillText(vipSlogan, W*0.06, H * 0.915);
-            ctx.restore();
-
-            // Hoàn tất
-            resultImage.src = canvas.toDataURL('image/jpeg', 0.95);
-            setTimeout(() => {
-                loadingState.classList.add('hidden');
-                resultImage.classList.remove('hidden');
-                resultActions.classList.remove('hidden');
-                generateBtn.disabled = false;
-                generateBtn.innerHTML = '<i class="ph-fill ph-check-circle"></i> GHÉP LẠI PHÁT NỮA';
-            }, 800);
-
-        } catch (err) {
-            alert("Lỗi rồi sếp ơi: " + err.message);
-            generateBtn.disabled = false;
-            loadingState.classList.add('hidden');
-        }
-    });
-});
-
-// Hàm tải ảnh (Sếp giữ nguyên cái này ở cuối file)
-function downloadImg() {
-    const img = document.getElementById('result-image');
-    if (!img.src || img.classList.contains('hidden')) return alert("Chưa có ảnh sếp ơi!");
-    const link = document.createElement('a');
-    link.href = img.src;
-    link.download = 'Sieu-Pham-FF-By-An.jpg';
-    link.click();
-}
+            // Hiển thị kết quả
+            resultImage.src = canvas.toDataURL('image/jpeg', 0.9);
