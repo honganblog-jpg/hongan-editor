@@ -1,13 +1,19 @@
-// --- 1. HÀM TẢI ẢNH (ĐỂ NGOÀI ĐỂ NÚT HTML GỌI ĐƯỢC) ---
+// --- 1. HÀM TẢI ẢNH (PHẢI ĐỂ NGOÀI CÙNG) ---
 function downloadImg() {
     const img = document.getElementById('result-image');
-    if (!img || !img.src || img.classList.contains('hidden')) return alert("Chưa có ảnh để tải sếp ơi!");
+    if (!img || !img.src || img.classList.contains('hidden')) {
+        alert("Chưa có ảnh để tải sếp ơi! Sếp nhớ bấm 'Ghép ảnh' trước nhé.");
+        return;
+    }
     const link = document.createElement('a');
     link.href = img.src;
-    link.download = 'Sieu-Pham-FF-An.jpg';
+    link.download = 'Sieu-Pham-FF-By-An.jpg';
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 }
 
+// --- 2. LOGIC XỬ LÝ CHÍNH ---
 document.addEventListener('DOMContentLoaded', () => {
     const uploadSlots = document.querySelectorAll('.upload-slot');
     const generateBtn = document.getElementById('generate-btn');
@@ -30,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const selectedFiles = [null, null, null, null];
 
-    // Xử lý Upload ảnh
     uploadSlots.forEach((slot, index) => {
         const input = slot.querySelector('input[type="file"]');
         input.addEventListener('change', (e) => {
@@ -49,7 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
         slot.addEventListener('click', () => input.click());
     });
 
-    // Nén ảnh chất lượng cao 1600px để AI soi VIP 5 chuẩn
     const fileToAI = (file) => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -70,36 +74,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     generateBtn.addEventListener('click', async () => {
         const API_KEY = apiKeyInput.value.trim();
-        if (!API_KEY) return alert("Sếp chưa nhập API Key ở mục 0 kìa!");
+        if (!API_KEY) return alert("Sếp chưa dán Key ở mục 0!");
 
         const validFiles = selectedFiles.filter(f => f !== null);
-        if (validFiles.length < 3) return alert("Phải đủ 3 ảnh mới đẹp sếp ơi!");
+        if (validFiles.length < 3) return alert("Cần đủ 3 ảnh (Nền, Prime, Súng) để không bị lỗi ô đen sếp ơi!");
 
         generateBtn.disabled = true;
         loadingState.classList.remove('hidden');
+        document.getElementById('result-section').classList.remove('hidden');
         let vipSlogan = "LEVEL ? - VIP ?";
 
         try {
-            // Bước 1: AI soi số (Dùng Gemini 1.5 Flash cho ổn định)
+            // --- BƯỚC 1: AI SOI SỐ (FIX LỖI 404 BẰNG MÔ HÌNH LATEST) ---
             const [b1, b2] = await Promise.all([fileToAI(validFiles[0]), fileToAI(validFiles[1])]);
-            const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện (BỎ QUA PRIME TO). Trả về mẫu: LEVEL [Số] - VIP [Số]. Ví dụ: LEVEL 60 - VIP 5.";
+            const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện (BỎ QUA PRIME TO). Trả về mẫu: LEVEL [Số] - VIP [Số]. Ví dụ: LEVEL 60 - VIP 3.";
 
-            // DÁN ĐOẠN NÀY VÀO DÒNG 87 (ĐÃ ĐỔI SANG V1 ĐỂ HẾT LỖI 404)
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: b1 }, { inlineData: b2 }] }] })
-                });
+            // Dùng v1beta và thêm chữ -latest để đảm bảo không bị 404
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: b1 }, { inlineData: b2 }] }] })
+            });
+
             const data = await res.json();
             
-            if (!res.ok) {
-                // HIỆN LỖI CHI TIẾT ĐỂ SẾP BIẾT ĐƯỜNG SỬA
-                alert("Lỗi AI (" + res.status + "): " + (data.error ? data.error.message : "Google chặn rồi!"));
-            } else if (data.candidates && data.candidates[0].content) {
+            if (res.ok && data.candidates) {
                 vipSlogan = data.candidates[0].content.parts[0].text.trim().toUpperCase().replace(/[*_#`\n\r]/g, '');
+            } else {
+                alert("Lỗi AI: " + (data.error ? data.error.message : "Google đang bảo trì hoặc Key sai!"));
             }
 
-            // Bước 2: Vẽ Canvas (Fix lỗi ô đen & tọa độ)
+            // --- BƯỚC 2: VẼ CANVAS (FIX LỖI Ô ĐEN) ---
             const imgs = await Promise.all(validFiles.map(f => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = URL.createObjectURL(f); })));
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -121,10 +126,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.strokeStyle = '#f9d423'; ctx.lineWidth = 8; ctx.stroke();
             };
 
-            drawCard(imgs[1], canvas.height * 0.05);
-            drawCard(imgs[2], canvas.height * 0.52);
+            if (imgs[1]) drawCard(imgs[1], canvas.height * 0.05);
+            if (imgs[2]) drawCard(imgs[2], canvas.height * 0.52);
 
-            // Vẽ Chữ LEVEL - VIP (Dập chữ Vàng Rank)
+            // Vẽ Chữ LEVEL - VIP
             ctx.fillStyle = 'rgba(0,0,0,0.8)';
             ctx.fillRect(0, canvas.height * 0.85, canvas.width * 0.45, canvas.height * 0.12);
             ctx.font = `italic bold ${canvas.height * 0.08}px Arial`;
