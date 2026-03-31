@@ -1,4 +1,4 @@
-// --- 1. HÀM TẢI ẢNH (PHẢI ĐỂ NGOÀI CÙNG ĐỂ NÚT HTML GỌI ĐƯỢC) ---
+// --- 1. HÀM TẢI ẢNH (ĐỂ NGOÀI CÙNG ĐỂ NÚT HTML GỌI ĐƯỢC) ---
 function downloadImg() {
     const img = document.getElementById('result-image');
     if (!img || !img.src || img.classList.contains('hidden')) {
@@ -13,7 +13,7 @@ function downloadImg() {
     document.body.removeChild(link);
 }
 
-// --- 2. LOGIC XỬ LÝ CHÍNH ---
+// --- 2. TOÀN BỘ LOGIC XỬ LÝ ---
 document.addEventListener('DOMContentLoaded', () => {
     const uploadSlots = document.querySelectorAll('.upload-slot');
     const generateBtn = document.getElementById('generate-btn');
@@ -59,7 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
         slot.addEventListener('click', () => input.click());
     });
 
-    // Nén ảnh chất lượng cao 1600px để AI soi VIP chuẩn
     const fileToAI = (file) => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -69,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 img.src = e.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    canvas.width = 1600;
+                    canvas.width = 1600; 
                     canvas.height = (img.height / img.width) * 1600;
                     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
                     resolve({ mimeType: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.9).split(',')[1] });
@@ -91,12 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let vipSlogan = "LEVEL ? - VIP ?";
 
         try {
-            // Bước 1: AI soi Level và VIP (Dùng link v1 để tránh lỗi 404)
             const [b1, b2] = await Promise.all([fileToAI(validFiles[0]), fileToAI(validFiles[1])]);
             const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện (BỎ QUA PRIME TO). Trả về mẫu: LEVEL [Số] - VIP [Số].";
 
-            // Sửa link API thành v1 để hết lỗi 404
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+            // LINK VÀNG: Dùng v1beta và tên mô hình chuẩn (KHÔNG CÓ CHỮ LATEST) 
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: b1 }, { inlineData: b2 }] }] })
@@ -110,13 +108,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Lỗi AI (" + res.status + "): " + (data.error ? data.error.message : "Google chặn rồi!"));
             }
 
-            // Bước 2: Vẽ Canvas (Fix lỗi ô đen & tọa độ)
             const imgs = await Promise.all(validFiles.map(f => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = URL.createObjectURL(f); })));
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const bg = imgs[0];
             canvas.width = bg.width; canvas.height = bg.height;
-
             ctx.drawImage(bg, 0, 0);
 
             const drawCard = (img, dy) => {
@@ -132,10 +128,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.strokeStyle = '#f9d423'; ctx.lineWidth = 8; ctx.stroke();
             };
 
-            drawCard(imgs[1], canvas.height * 0.05); // Ô Prime
-            drawCard(imgs[2], canvas.height * 0.52); // Ô Súng
+            drawCard(imgs[1], canvas.height * 0.05);
+            drawCard(imgs[2], canvas.height * 0.52);
 
-            // Vẽ Chữ LEVEL - VIP
             ctx.fillStyle = 'rgba(0,0,0,0.8)';
             ctx.fillRect(0, canvas.height * 0.85, canvas.width * 0.45, canvas.height * 0.12);
             ctx.font = `italic bold ${canvas.height * 0.08}px Arial`;
