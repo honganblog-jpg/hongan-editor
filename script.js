@@ -1,10 +1,9 @@
-// --- 1. HÀM TẢI ẢNH (Bảo đảm không lỗi nút) ---
+// --- 1. HÀM TẢI ẢNH ---
 function downloadImg() {
     const img = document.getElementById('result-image');
     if (!img || !img.src || img.classList.contains('hidden')) return alert("Chưa có ảnh kết quả để tải sếp ơi!");
     const link = document.createElement('a');
-    link.href = img.src;
-    link.download = 'Sieu-Pham-FF-Cua-An.jpg';
+    link.href = img.src; link.download = 'Sieu-Pham-FF-By-An.jpg';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -18,10 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiKeyInput = document.getElementById('api-key-input');
     const saveKeyBtn = document.getElementById('save-key-btn');
     const uploadSlots = document.querySelectorAll('.upload-slot');
-    const progressFill = document.querySelector('.progress-fill');
-    const loadingText = document.querySelector('.loading-state p');
 
-    // Móc API Key
     if (localStorage.getItem('gemini_api_key')) {
         apiKeyInput.value = localStorage.getItem('gemini_api_key');
         saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu';
@@ -74,9 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     generateBtn.onclick = async () => {
         const API_KEY = apiKeyInput.value.trim();
-        if (!API_KEY) return alert("Sếp nhập mã Key đi!");
+        if (!API_KEY) return alert("Sếp chưa nhập mã Key!");
         const validFiles = selectedFiles.filter(f => f !== null);
-        if (validFiles.length < 3) return alert("Sếp up đủ 3 ảnh (Nền, Prime, Kho đồ) nhé!");
+        if (validFiles.length < 3) return alert("Sếp up đủ 3 ảnh nhé!");
 
         generateBtn.disabled = true;
         document.getElementById('result-section').classList.remove('hidden');
@@ -84,17 +80,12 @@ document.addEventListener('DOMContentLoaded', () => {
         resultImage.classList.add('hidden');
         document.getElementById('result-actions').classList.add('hidden');
         
-        if(progressFill) progressFill.style.width = '20%';
-        if(loadingText) loadingText.textContent = "AI đang soi cấp độ...";
-
         let vipSlogan = "LEVEL ? - VIP ?";
 
         try {
-            // ==========================================
-            // PHẦN 1: AI ĐỌC SỐ (Dùng Gemini 2.5 Flash)
-            // ==========================================
+            // AI ĐỌC SỐ
             const [b1, b2] = await Promise.all([fileToAI(validFiles[0]), fileToAI(validFiles[1])]);
-            const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện (BỎ QUA PRIME TO). Trả về: LEVEL [Số] - VIP [Số].";
+            const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2 lấy số nhỏ trong vương miện (BỎ QUA PRIME TO). Trả về đúng mẫu: LEVEL [Số] - VIP [Số].";
 
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
                 method: 'POST',
@@ -107,12 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 vipSlogan = data.candidates[0].content.parts[0].text.trim().toUpperCase().replace(/[*_#`\n\r]/g, '');
             }
 
-            if(progressFill) progressFill.style.width = '60%';
-            if(loadingText) loadingText.textContent = "Đang dập nổi 3D & Hiệu ứng chiến trường...";
-
-            // ==========================================
-            // PHẦN 2: CANVAS VẼ SIÊU PHẨM
-            // ==========================================
+            // VẼ CANVAS
             const imageObjects = await Promise.all(validFiles.map(f => new Promise(r => { 
                 const i = new Image(); i.onload = () => r(i); i.src = URL.createObjectURL(f); 
             })));
@@ -127,61 +113,36 @@ document.addEventListener('DOMContentLoaded', () => {
             if (H > 1440) { W = (1440 / H) * W; H = 1440; }
             canvas.width = W; canvas.height = H;
 
-            // 1. Dán tấm Nền chiếm TẤT CẢ DIỆN TÍCH
+            // 1. Vẽ nền
             ctx.drawImage(imgBg, 0, 0, imgBg.width, imgBg.height, 0, 0, W, H);
 
-            // 2. YÊU CẦU 1: LÀM MỜ/TỐI NỀN ĐỂ NỔI BẬT THẺ CHÍNH 
-            const gradDark = ctx.createLinearGradient(W * 0.2, 0, W, 0); // Làm tối từ 20% màn hình
+            // 2. Phủ sương đen làm mờ nền
+            const gradDark = ctx.createLinearGradient(W * 0.2, 0, W, 0);
             gradDark.addColorStop(0, 'rgba(0,0,0,0.1)'); 
-            gradDark.addColorStop(0.4, 'rgba(0,0,0,0.7)'); // Giữa màn hình bắt đầu tối đậm
-            gradDark.addColorStop(1, 'rgba(0,0,0,0.9)'); // Che hẳn phần UI thừa bên phải
+            gradDark.addColorStop(0.5, 'rgba(0,0,0,0.6)');
+            gradDark.addColorStop(1, 'rgba(0,0,0,0.9)');
             ctx.fillStyle = gradDark;
             ctx.fillRect(0, 0, W, H);
 
-            // 3. YÊU CẦU 3: HIỆU ỨNG CHIẾN TRƯỜNG (LỬA & ĐẠN BAY) 
-            const drawAmbientWarzone = () => {
-                ctx.save();
-                // Tia lửa
-                for (let i = 0; i < 40; i++) {
-                    const x = Math.random() * W; const y = Math.random() * H;
-                    const length = Math.random() * 30 + 10; const angle = Math.random() * Math.PI * 2;
-                    ctx.beginPath();
-                    ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
-                    const colors = ['#ffffff', '#ffeb3b', '#ff9800', '#ff5722'];
-                    ctx.strokeStyle = colors[Math.floor(Math.random() * colors.length)];
-                    ctx.lineWidth = Math.random() * 3 + 1;
-                    ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = Math.random() * 15 + 5;
-                    ctx.globalAlpha = Math.random() * 0.7 + 0.3;
-                    ctx.stroke();
-                }
-                // Vỏ đạn bay 3D
-                for (let i = 0; i < 6; i++) {
-                    const x = Math.random() * W; const y = Math.random() * (H * 0.9);
-                    const scale = Math.random() * 1.2 + 0.4; const rot = Math.random() * Math.PI * 2;
-                    ctx.save();
-                    ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
-                    ctx.globalAlpha = Math.random() * 0.5 + 0.3;
-                    ctx.shadowColor = '#000'; ctx.shadowBlur = 10;
-                    // Thân đạn
-                    let brass = ctx.createLinearGradient(0, -6, 0, 6);
-                    brass.addColorStop(0, '#a67c00'); brass.addColorStop(0.5, '#f9d423'); brass.addColorStop(1, '#a67c00');
-                    ctx.fillStyle = brass; ctx.beginPath(); ctx.rect(-15, -6, 30, 12); ctx.fill();
-                    // Mũi nhọn
-                    let copper = ctx.createLinearGradient(15, -6, 15, 6);
-                    copper.addColorStop(0, '#8b5a2b'); copper.addColorStop(0.5, '#cd853f'); copper.addColorStop(1, '#8b5a2b');
-                    ctx.fillStyle = copper; ctx.beginPath();
-                    ctx.moveTo(15, -6); ctx.lineTo(25, -2); ctx.lineTo(25, 2); ctx.lineTo(15, 6); ctx.closePath(); ctx.fill();
-                    ctx.restore();
-                }
-                ctx.restore();
-            };
-            drawAmbientWarzone();
+            // 3. Vẽ hiệu ứng tia lửa
+            ctx.save();
+            for (let i = 0; i < 30; i++) {
+                const x = Math.random() * W; const y = Math.random() * H;
+                const length = Math.random() * 25 + 10; const angle = Math.random() * Math.PI * 2;
+                ctx.beginPath();
+                ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+                const colors = ['#ffffff', '#ffeb3b', '#ff9800'];
+                ctx.strokeStyle = colors[Math.floor(Math.random() * colors.length)];
+                ctx.lineWidth = Math.random() * 3 + 1;
+                ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 10;
+                ctx.globalAlpha = Math.random() * 0.6 + 0.2;
+                ctx.stroke();
+            }
+            ctx.restore();
 
-            // 4. CẮT & VẼ 2 THẺ NỔI BẬT [cite: 54-79]
-            // Xén bỏ các menu thừa để thẻ gọn gàng
+            // 4. Tính toán và vẽ 2 thẻ
             const cr1 = { sx: imgPrime.width * 0.175, sy: imgPrime.height * 0.05, sw: imgPrime.width * 0.825, sh: imgPrime.height * 0.90 };
             const cr2 = { sx: imgWeapons.width * 0.18, sy: imgWeapons.height * 0.175, sw: imgWeapons.width * 0.81, sh: imgWeapons.height * 0.80 };
-            
             const availH = H * 0.90 - (H * 0.03);
             const ratioPrime = cr1.sh / cr1.sw; const ratioWeapons = cr2.sh / cr2.sw;
             const dw = availH / (ratioPrime + ratioWeapons);
@@ -203,66 +164,86 @@ document.addEventListener('DOMContentLoaded', () => {
                     ctx.quadraticCurveTo(rx, ry, rx + radius, ry);
                     ctx.closePath();
                 };
-                // Bóng 3D
                 ctx.save(); createPath();
                 ctx.shadowColor = 'rgba(0, 0, 0, 0.9)'; ctx.shadowBlur = 35; ctx.shadowOffsetX = -10; ctx.shadowOffsetY = 15;
                 ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
-                // Ráp ảnh
                 ctx.save(); createPath(); ctx.clip();
                 ctx.drawImage(srcImg, cr.sx, cr.sy, cr.sw, cr.sh, rx, ry, rw, rh); ctx.restore();
-                // Viền vàng rực
                 ctx.save(); createPath(); ctx.lineWidth = 5;
                 const goldGlow = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
-                goldGlow.addColorStop(0, '#f9d423'); goldGlow.addColorStop(0.5, '#ffd700'); goldGlow.addColorStop(1, '#ff4e50');
+                goldGlow.addColorStop(0, '#f9d423'); goldGlow.addColorStop(1, '#ff4e50');
                 ctx.strokeStyle = goldGlow; ctx.stroke(); ctx.restore();
             };
 
             drawVipCard(imgPrime, cr1, dx, dy1, dw, dh1);
             drawVipCard(imgWeapons, cr2, dx, dy2, dw, dh2);
 
-            // 5. YÊU CẦU 2: BĂNG RÔN ESPORTS 3D CHO CHỮ LEVEL - VIP 
+            // =========================================================
+            // 5. VẼ BĂNG RÔN & CHỮ LEVEL (CHUẨN DEMO 24234.jpg)
+            // =========================================================
             ctx.save();
-            let fontSize = Math.floor(H * 0.075); // Cho chữ to hẳn lên
-            ctx.font = `italic 900 ${fontSize}px "Arial Black", sans-serif`;
-            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            const textX = W * 0.055; const textY = H * 0.90;
+            
+            // Cài đặt Font chữ siêu to
+            let fontSize = Math.floor(H * 0.075);
+            ctx.font = `italic 900 ${fontSize}px "Arial Black", "Impact", sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            
+            // Đo chiều rộng chữ để vẽ khung vừa vặn
             const textWidth = ctx.measureText(vipSlogan).width;
-            const paddingX = fontSize * 1.5; const paddingY = fontSize * 1.5;
-
-            // Nền Băng Rôn Cắt Xiên
-            const ribbonW = textWidth + paddingX; const ribbonH = fontSize + paddingY;
-            const ribbonX = textX - paddingX / 2.5; const ribbonY = textY - ribbonH / 2;
-            ctx.translate(ribbonX, ribbonY); ctx.transform(1, 0, -0.35, 1, 0, 0); // Kéo xiên 3D
-            ctx.beginPath(); ctx.rect(0, 0, ribbonW, ribbonH);
-            ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 25; ctx.shadowOffsetX = 15; ctx.shadowOffsetY = 15;
-            ctx.fillStyle = 'rgba(10, 10, 10, 0.85)'; ctx.fill(); // Kính mờ đen
             
-            // Viền Băng Rôn Đỏ Vàng
-            ctx.shadowBlur = 0;
-            const ribbonBorder = ctx.createLinearGradient(0, 0, ribbonW, ribbonH);
-            ribbonBorder.addColorStop(0, '#f9d423'); ribbonBorder.addColorStop(1, '#ff4e50');
-            ctx.lineWidth = Math.floor(H * 0.005); ctx.strokeStyle = ribbonBorder; ctx.stroke();
+            // Kích thước khung (Padding)
+            const paddingX = fontSize * 1.2;
+            const paddingY = fontSize * 0.8;
+            const bannerH = fontSize + paddingY * 2;
+            const bannerW = textWidth + paddingX * 2;
+            const slant = W * 0.06; // Độ chéo của cạnh phải
+            
+            // Vị trí khung (Góc dưới cùng bên trái)
+            const startX = 0; 
+            const startY = H - bannerH - (H * 0.02);
+
+            // Vẽ Đường dẫn (Path) cho hình thang nghiêng
+            ctx.beginPath();
+            ctx.moveTo(startX, startY); // Góc trên trái
+            ctx.lineTo(startX + bannerW + slant, startY); // Góc trên phải (nhô ra tạo độ nghiêng)
+            ctx.lineTo(startX + bannerW, startY + bannerH); // Góc dưới phải (thụt vào)
+            ctx.lineTo(startX, startY + bannerH); // Góc dưới trái
+            ctx.closePath();
+
+            // Đổ nền đen mờ cho khung
+            ctx.fillStyle = 'rgba(15, 15, 15, 0.9)';
+            ctx.fill();
+
+            // Bo viền Gradient Đỏ - Vàng cho khung
+            const borderGrad = ctx.createLinearGradient(startX, startY, startX + bannerW + slant, startY + bannerH);
+            borderGrad.addColorStop(0, '#f9d423'); // Vàng
+            borderGrad.addColorStop(1, '#ff4e50'); // Đỏ
+            ctx.lineWidth = Math.floor(H * 0.008);
+            ctx.strokeStyle = borderGrad;
+            ctx.stroke();
+
+            // Đổ bóng cho chữ bên trong
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 4;
+            ctx.shadowOffsetY = 4;
+
+            // Màu gradient cho chữ (Trắng ngà sang Vàng)
+            const textGrad = ctx.createLinearGradient(0, startY, 0, startY + bannerH);
+            textGrad.addColorStop(0, '#ffffff');
+            textGrad.addColorStop(0.5, '#fff176'); // Vàng nhạt
+            textGrad.addColorStop(1, '#ffb300'); // Vàng cam
+            
+            ctx.fillStyle = textGrad;
+            
+            // In chữ ra giữa khung
+            ctx.fillText(vipSlogan, startX + paddingX, startY + bannerH / 2 + (fontSize * 0.05));
+            
             ctx.restore();
+            // =========================================================
 
-            // Lõi Chữ Vàng 24K Trong Băng Rôn
-            ctx.shadowColor = '#000'; ctx.shadowBlur = 15; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 5;
-            const textGradient = ctx.createLinearGradient(0, textY - fontSize / 2, 0, textY + fontSize / 2);
-            textGradient.addColorStop(0, '#f9d423'); 
-            textGradient.addColorStop(0.5, '#ffffff'); // Sáng lóa ở giữa
-            textGradient.addColorStop(1, '#ff4e50');
-            
-            ctx.miterLimit = 2; ctx.lineWidth = fontSize * 0.15; ctx.strokeStyle = '#000'; // Đổ viền đen dày
-            ctx.strokeText(vipSlogan, textX, textY);
-            ctx.shadowBlur = 0; ctx.fillStyle = textGradient;
-            ctx.fillText(vipSlogan, textX, textY);
-            ctx.restore();
-
-            // ==========================================
-            // XUẤT ẢNH
-            // ==========================================
-            if(progressFill) progressFill.style.width = '100%';
-            if(loadingText) loadingText.textContent = "Hoàn tất đóng gói!";
-            
+            // Xuất ảnh
             setTimeout(() => {
                 loadingState.classList.add('hidden');
                 resultImage.src = canvas.toDataURL('image/jpeg', 0.95);
@@ -272,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 500);
 
         } catch (error) {
-            alert("Lỗi tạo ảnh: " + error.message);
+            alert("Lỗi phần mềm: " + error.message);
             loadingState.classList.add('hidden'); generateBtn.disabled = false;
         }
     };
