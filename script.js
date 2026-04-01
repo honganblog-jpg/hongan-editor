@@ -1,10 +1,10 @@
 // --- 1. HÀM TẢI ẢNH ---
 function downloadImg() {
     const img = document.getElementById('result-image');
-    if (!img || !img.src || img.classList.contains('hidden')) return alert("Chưa có ảnh kết quả để tải sếp ơi!"); [cite: 1, 2]
+    if (!img || !img.src || img.classList.contains('hidden')) return alert("Chưa có ảnh kết quả để tải sếp ơi!");
     const link = document.createElement('a');
     link.href = img.src; 
-    link.download = 'Sieu-Pham-FF-By-An.jpg'; [cite: 3]
+    link.download = 'Sieu-Pham-FF-By-An.jpg';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (localStorage.getItem('gemini_api_key')) {
         apiKeyInput.value = localStorage.getItem('gemini_api_key');
-        saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu'; [cite: 4]
+        saveKeyBtn.innerHTML = '<i class="ph ph-check"></i> Đã Lưu';
     }
 
     saveKeyBtn.onclick = () => {
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     slot.querySelector('.preview').classList.remove('hidden');
                     slot.querySelector('.placeholder').classList.add('hidden');
                 };
-                r.readAsDataURL(file); [cite: 5, 6, 7]
+                r.readAsDataURL(file);
             }
         };
         slot.onclick = () => input.click();
@@ -61,89 +61,84 @@ document.addEventListener('DOMContentLoaded', () => {
                 img.src = e.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    canvas.width = 1600; 
-                    canvas.height = (img.height / img.width) * 1600;
-                    canvas.getContext('2d').drawImage(img, 0, 0, 1600, canvas.height);
-                    resolve({ mimeType: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.9).split(',')[1] });
+                    // Tăng độ phân giải lên 2000px để AI nhìn chữ nhỏ rõ hơn
+                    canvas.width = 2000; 
+                    canvas.height = (img.height / img.width) * 2000;
+                    canvas.getContext('2d').drawImage(img, 0, 0, 2000, canvas.height);
+                    resolve({ mimeType: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.95).split(',')[1] });
                 };
             };
         });
-    }; [cite: 8, 9, 10, 11]
+    };
 
     generateBtn.onclick = async () => {
         const API_KEY = apiKeyInput.value.trim();
-        if (!API_KEY) return alert("Sếp chưa nhập mã Key!"); [cite: 12]
+        if (!API_KEY) return alert("Sếp chưa nhập mã Key!");
         const validFiles = selectedFiles.filter(f => f !== null);
-        if (validFiles.length < 3) return alert("Sếp up đủ 3 ảnh (Nền, Prime, Súng) nhé!"); [cite: 13]
+        if (validFiles.length < 3) return alert("Sếp up đủ 3 ảnh (Nền, Prime, Súng) nhé!");
 
         generateBtn.disabled = true;
         document.getElementById('result-section').classList.remove('hidden');
         loadingState.classList.remove('hidden');
         resultImage.classList.add('hidden');
-        document.getElementById('result-actions').classList.add('hidden'); [cite: 14]
+        document.getElementById('result-actions').classList.add('hidden');
         
         let vipSlogan = "LEVEL ? - VIP ?";
 
         try {
-            // ==========================================
-            // 1. AI ĐỌC LEVEL & VIP (LOGIC MỚI)
-            // ==========================================
             const [b1, b2] = await Promise.all([fileToAI(validFiles[0]), fileToAI(validFiles[1])]);
             
-            // Câu lệnh Prompt đã được tối ưu theo yêu cầu của sếp
-            const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2, quan sát kỹ dòng chữ nhỏ ở thanh tiến trình dưới chữ PRIME: " + 
-                           "1. Nếu thấy chữ 'để về Prime [Số]', hãy lấy [Số] đó làm VIP (Ví dụ: 'để về Prime 5' thì VIP là 5). " + 
-                           "2. Nếu thấy chữ 'để đạt Prime [Số]' hoặc có số lượng kim cương cần tích lũy, hãy lấy số Prime lớn đang hiển thị làm VIP. " + 
-                           "Chỉ trả về đúng mẫu duy nhất: LEVEL [Số] - VIP [Số]."; [cite: 15]
+            // --- PROMPT SIÊU GẮT (UPDATE) ---
+            const prompt = `NHIỆM VỤ: Đọc chỉ số từ ảnh Free Fire.
+            1. Ảnh 1: Lấy số LEVEL sau chữ 'LV.' (Ví dụ: LV.65 thì là LEVEL 65).
+            2. Ảnh 2: Tập trung nhìn vào THANH TIẾN TRÌNH màu vàng nằm dưới chữ PRIME 1.
+               - Nếu thấy dòng chữ 'để về Prime [X]' (Ví dụ: 'để về Prime 4'): VIP PHẢI LÀ X. Tuyệt đối không lấy số 1 to tướng.
+               - Nếu thấy dòng chữ 'để đạt Prime [X]': VIP là con số lớn đang hiển thị (Số 1).
+            TRẢ VỀ ĐÚNG MẪU: LEVEL [Số] - VIP [Số]. Không giải thích gì thêm.`;
 
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: b1 }, { inlineData: b2 }] }] })
-            }); [cite: 16]
+            });
 
             const data = await res.json();
             if (res.ok && data.candidates) {
                 vipSlogan = data.candidates[0].content.parts[0].text.trim().toUpperCase().replace(/[*_#`\n\r]/g, '');
-            } [cite: 17, 18]
+            }
 
-            // ==========================================
-            // 2. VẼ CANVAS
-            // ==========================================
             const imageObjects = await Promise.all(validFiles.map(f => new Promise(r => { 
                 const i = new Image(); i.onload = () => r(i); i.src = URL.createObjectURL(f); 
-            }))); [cite: 19]
+            })));
             
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const imgBg = imageObjects[0];
             const imgPrime = imageObjects[1];
-            const imgWeapons = imageObjects[2]; [cite: 20]
+            const imgWeapons = imageObjects[2];
 
             let H = imgBg.height; let W = imgBg.width;
-            if (H > 1440) { W = (1440 / H) * W; H = 1440; } [cite: 21, 22]
+            if (H > 1440) { W = (1440 / H) * W; H = 1440; }
             canvas.width = W; canvas.height = H;
 
-            // Dán Nền và phủ mờ
-            ctx.drawImage(imgBg, 0, 0, imgBg.width, imgBg.height, 0, 0, W, H); [cite: 23]
+            ctx.drawImage(imgBg, 0, 0, imgBg.width, imgBg.height, 0, 0, W, H);
             const gradDark = ctx.createLinearGradient(W * 0.2, 0, W, 0);
             gradDark.addColorStop(0, 'rgba(0,0,0,0.1)'); 
             gradDark.addColorStop(0.5, 'rgba(0,0,0,0.6)');
             gradDark.addColorStop(1, 'rgba(0,0,0,0.9)');
             ctx.fillStyle = gradDark;
-            ctx.fillRect(0, 0, W, H); [cite: 24, 25]
+            ctx.fillRect(0, 0, W, H);
 
-            // Tính toán vị trí các thẻ bên phải
-            const cr1 = { sx: imgPrime.width * 0.175, sy: imgPrime.height * 0.05, sw: imgPrime.width * 0.825, sh: imgPrime.height * 0.90 }; [cite: 26]
-            const cr2 = { sx: imgWeapons.width * 0.18, sy: imgWeapons.height * 0.175, sw: imgWeapons.width * 0.81, sh: imgWeapons.height * 0.80 }; [cite: 27]
+            const cr1 = { sx: imgPrime.width * 0.175, sy: imgPrime.height * 0.05, sw: imgPrime.width * 0.825, sh: imgPrime.height * 0.90 };
+            const cr2 = { sx: imgWeapons.width * 0.18, sy: imgWeapons.height * 0.175, sw: imgWeapons.width * 0.81, sh: imgWeapons.height * 0.80 };
             const availH = H * 0.90 - (H * 0.03);
             const ratioPrime = cr1.sh / cr1.sw;
-            const ratioWeapons = cr2.sh / cr2.sw; [cite: 28, 29]
+            const ratioWeapons = cr2.sh / cr2.sw;
             const dw = availH / (ratioPrime + ratioWeapons);
             const dh1 = dw * ratioPrime;
-            const dh2 = dw * ratioWeapons; [cite: 30]
+            const dh2 = dw * ratioWeapons;
             const dx = W - dw - (W * 0.03);
-            const dy1 = H * 0.05; const dy2 = dy1 + dh1 + (H * 0.03); [cite: 31]
+            const dy1 = H * 0.05; const dy2 = dy1 + dh1 + (H * 0.03);
 
             const drawVipCard = (srcImg, cr, rx, ry, rw, rh) => {
                 const radius = 18;
@@ -158,96 +153,67 @@ document.addEventListener('DOMContentLoaded', () => {
                     ctx.lineTo(rx, ry + radius);
                     ctx.quadraticCurveTo(rx, ry, rx + radius, ry);
                     ctx.closePath();
-                }; [cite: 32, 33, 34, 35, 36, 37]
-                
+                };
                 ctx.save(); createPath();
                 ctx.shadowColor = 'rgba(0, 0, 0, 0.9)'; ctx.shadowBlur = 35;
                 ctx.shadowOffsetX = -10; ctx.shadowOffsetY = 15;
-                ctx.fillStyle = '#000'; ctx.fill(); ctx.restore(); [cite: 38]
-
+                ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
                 ctx.save(); createPath(); ctx.clip();
-                ctx.drawImage(srcImg, cr.sx, cr.sy, cr.sw, cr.sh, rx, ry, rw, rh); ctx.restore(); [cite: 39]
-
+                ctx.drawImage(srcImg, cr.sx, cr.sy, cr.sw, cr.sh, rx, ry, rw, rh); ctx.restore();
                 ctx.save(); createPath(); ctx.lineWidth = 5;
                 const goldGlow = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
                 goldGlow.addColorStop(0, '#f9d423'); goldGlow.addColorStop(1, '#ff4e50');
-                ctx.strokeStyle = goldGlow; ctx.stroke(); ctx.restore(); [cite: 40, 41]
+                ctx.strokeStyle = goldGlow; ctx.stroke(); ctx.restore();
             };
 
             drawVipCard(imgPrime, cr1, dx, dy1, dw, dh1);
             drawVipCard(imgWeapons, cr2, dx, dy2, dw, dh2);
 
-            // ==========================================
-            // 3. VẼ CHỮ LEVEL - VIP SIÊU NGẦU
-            // ==========================================
             ctx.save();
-            const fontSize = Math.floor(H * 0.08); [cite: 43]
-            ctx.font = `italic 900 ${fontSize}px "Arial Black", Impact, sans-serif`; [cite: 44]
-            ctx.textBaseline = 'middle';
-            ctx.textAlign = 'left';
-
-            const textWidth = ctx.measureText(vipSlogan).width; [cite: 45]
-            const paddingX = fontSize * 1.5; 
-            const paddingY = fontSize * 1.0; [cite: 46]
-            const bannerW = textWidth + (paddingX * 2); [cite: 47]
-            const bannerH = fontSize + paddingY; [cite: 48]
-            
+            const fontSize = Math.floor(H * 0.08);
+            ctx.font = `italic 900 ${fontSize}px "Arial Black", Impact, sans-serif`;
+            ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+            const textWidth = ctx.measureText(vipSlogan).width;
+            const paddingX = fontSize * 1.5; const paddingY = fontSize * 1.0;
+            const bannerW = textWidth + (paddingX * 2);
+            const bannerH = fontSize + paddingY;
             const startX = -20;
-            const startY = H - bannerH - (H * 0.05); [cite: 49]
+            const startY = H - bannerH - (H * 0.05);
 
             ctx.beginPath();
             ctx.moveTo(startX, startY);
             ctx.lineTo(startX + bannerW + (bannerH * 0.4), startY);
             ctx.lineTo(startX + bannerW, startY + bannerH);
             ctx.lineTo(startX, startY + bannerH);
-            ctx.closePath(); [cite: 50, 51, 52, 53]
-
-            ctx.fillStyle = 'rgba(10, 10, 10, 0.85)';
-            ctx.fill(); [cite: 54, 55]
-            
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.85)'; ctx.fill();
             ctx.lineWidth = 6;
             const borderGrad = ctx.createLinearGradient(startX, startY, startX + bannerW, startY + bannerH);
-            borderGrad.addColorStop(0, '#f9d423');
-            borderGrad.addColorStop(1, '#ff4e50');
-            ctx.strokeStyle = borderGrad;
-            ctx.stroke(); [cite: 56]
+            borderGrad.addColorStop(0, '#f9d423'); borderGrad.addColorStop(1, '#ff4e50');
+            ctx.strokeStyle = borderGrad; ctx.stroke();
 
             const textX = startX + paddingX;
-            const textY = startY + (bannerH / 2) + (fontSize * 0.05); [cite: 57, 58]
-
-            ctx.shadowColor = 'rgba(0, 0, 0, 1)';
-            ctx.shadowBlur = 15;
-            ctx.shadowOffsetX = 6;
-            ctx.shadowOffsetY = 6; [cite: 59, 60]
-
-            ctx.lineWidth = 10;
-            ctx.strokeStyle = '#000000';
-            ctx.strokeText(vipSlogan, textX, textY); [cite: 61]
-
-            ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; [cite: 62]
-
+            const textY = startY + (bannerH / 2) + (fontSize * 0.05);
+            ctx.shadowColor = 'rgba(0, 0, 0, 1)'; ctx.shadowBlur = 15;
+            ctx.shadowOffsetX = 6; ctx.shadowOffsetY = 6;
+            ctx.lineWidth = 10; ctx.strokeStyle = '#000000';
+            ctx.strokeText(vipSlogan, textX, textY);
+            ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
             const textGrad = ctx.createLinearGradient(0, textY - fontSize/2, 0, textY + fontSize/2);
-            textGrad.addColorStop(0, '#ffffff');
-            textGrad.addColorStop(0.5, '#fff176');
-            textGrad.addColorStop(1, '#ffb300');
-            ctx.fillStyle = textGrad;
-            ctx.fillText(vipSlogan, textX, textY); [cite: 63, 64, 65, 66]
-            
+            textGrad.addColorStop(0, '#ffffff'); textGrad.addColorStop(0.5, '#fff176'); textGrad.addColorStop(1, '#ffb300');
+            ctx.fillStyle = textGrad; ctx.fillText(vipSlogan, textX, textY);
             ctx.restore();
 
-            // ==========================================
-            // XUẤT ẢNH
-            // ==========================================
             setTimeout(() => {
                 loadingState.classList.add('hidden');
                 resultImage.src = canvas.toDataURL('image/jpeg', 0.95);
                 resultImage.classList.remove('hidden');
                 document.getElementById('result-actions').classList.remove('hidden');
                 generateBtn.disabled = false;
-            }, 500); [cite: 67]
+            }, 500);
         } catch (error) {
             alert("Lỗi phần mềm: " + error.message);
-            loadingState.classList.add('hidden'); generateBtn.disabled = false; [cite: 68, 69]
+            loadingState.classList.add('hidden'); generateBtn.disabled = false;
         }
     };
 });
