@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveKeyBtn = document.getElementById('save-key-btn');
     const uploadSlots = document.querySelectorAll('.upload-slot');
 
-    // FIX 1: Thêm lớp bảo vệ, nếu sếp có đổi ID trong HTML thì code cũng không bị sập
     if (apiKeyInput && saveKeyBtn) {
         if (localStorage.getItem('gemini_api_key')) {
             apiKeyInput.value = localStorage.getItem('gemini_api_key');
@@ -37,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const selectedFiles = [null, null, null, null];
     
-    // FIX 2: Bọc chống lỗi cho slot up ảnh
     if (uploadSlots) {
         uploadSlots.forEach((slot, index) => {
             const input = slot.querySelector('input[type="file"]');
@@ -100,10 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 // ==========================================
                 const [b1, b2] = await Promise.all([fileToAI(validFiles[0]), fileToAI(validFiles[1])]);
                 
-                // CÂU LỆNH MỚI: Chỉ soi dòng chữ nhỏ, cấm AI nhìn số to.
                 const prompt = "Soi ảnh 1 lấy số Level góc trái trên. Soi ảnh 2: Tuyệt đối BỎ QUA số Prime to ở giữa. Hãy nhìn dòng chữ nhỏ ở thanh màu vàng dưới chữ PRIME. Nếu có chữ 'để về Prime [Số]' thì VIP là [Số] đó. Nếu có chữ 'để đạt Prime' thì VIP là số to đang hiện. Trả về đúng mẫu: LEVEL [Số] - VIP [Số].";
                 
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+                // ĐÃ FIX: Nâng cấp thẳng lên model gemini-2.5-flash
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: b1 }, { inlineData: b2 }] }] })
@@ -111,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const data = await res.json();
                 
-                // Báo lỗi rõ ràng nếu Key sai hoặc lỗi mạng
                 if (data.error) {
                     throw new Error(data.error.message);
                 }
@@ -137,10 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (H > 1440) { W = (1440 / H) * W; H = 1440; }
                 canvas.width = W; canvas.height = H;
                 
-                // Dán Nền
                 ctx.drawImage(imgBg, 0, 0, imgBg.width, imgBg.height, 0, 0, W, H);
                 
-                // Phủ kính mờ tối nền
                 const gradDark = ctx.createLinearGradient(W * 0.2, 0, W, 0);
                 gradDark.addColorStop(0, 'rgba(0,0,0,0.1)'); 
                 gradDark.addColorStop(0.5, 'rgba(0,0,0,0.6)');
@@ -148,7 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.fillStyle = gradDark;
                 ctx.fillRect(0, 0, W, H);
                 
-                // Vẽ thẻ Prime & Kho Đồ
                 const cr1 = { sx: imgPrime.width * 0.175, sy: imgPrime.height * 0.05, sw: imgPrime.width * 0.825, sh: imgPrime.height * 0.90 };
                 const cr2 = { sx: imgWeapons.width * 0.18, sy: imgWeapons.height * 0.175, sw: imgWeapons.width * 0.81, sh: imgWeapons.height * 0.80 };
                 const availH = H * 0.90 - (H * 0.03);
@@ -262,7 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     generateBtn.disabled = false;
                 }, 500);
             } catch (error) {
-                // FIX 3: Nếu AI lỗi, nó sẽ hiện thông báo cho sếp biết luôn
                 alert("LỖI RỒI SẾP: " + error.message);
                 if (loadingState) loadingState.classList.add('hidden'); 
                 generateBtn.disabled = false;
